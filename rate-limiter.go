@@ -104,7 +104,7 @@ func (r *rateLimiter) Run() {
 }
 
 // Sample endpoint for testing rate limiting
-func testEndpoint(w http.ResponseWriter, r *http.Request) {
+func TestEndpoint(w http.ResponseWriter, r *http.Request) {
 	rockPaperScissors := []string{"rock 🪨", "paper 📃", "scissors ✂️"}
 	randomChoice := rockPaperScissors[time.Now().UnixNano()%3]
 
@@ -117,22 +117,22 @@ func testEndpoint(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func main() {
-	// Initialize the rate limiter
-	rateLimiter := New()
-	rateLimiter.SetConfig(RateLimiterConfig{
-		RATE_LIMIT:      1000,
-		REFILL_INTERVAL: 2 * time.Second,
-	})
-	rateLimiter.Run()
+// func main() {
+// 	// Initialize the rate limiter
+// 	rateLimiter := New()
+// 	rateLimiter.SetConfig(RateLimiterConfig{
+// 		RATE_LIMIT:      1000,
+// 		REFILL_INTERVAL: 2 * time.Second,
+// 	})
+// 	rateLimiter.Run()
 
-	// Setup HTTP server and routes
-	http.HandleFunc("/bucket", rateLimiter.GetBucketStatus)
-	http.Handle("/test", rateLimiter.RateLimitMiddleware(http.HandlerFunc(testEndpoint)))
+// 	// Setup HTTP server and routes
+// 	http.HandleFunc("/bucket", rateLimiter.GetBucketStatus)
+// 	http.Handle("/test", rateLimiter.RateLimitMiddleware(http.HandlerFunc(testEndpoint)))
 
-	// Start the server
-	fmt.Println("Server running on port 5000")
-	if err := http.ListenAndServe(":5000", nil); err != nil {
-		fmt.Println("Error starting server:", err)
-	}
-}
+// 	// Start the server
+// 	fmt.Println("Server running on port 5000")
+// 	if err := http.ListenAndServe(":5000", nil); err != nil {
+// 		fmt.Println("Error starting server:", err)
+// 	}
+// }
