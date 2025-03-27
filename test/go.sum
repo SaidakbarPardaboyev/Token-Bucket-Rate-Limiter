@@ -1,3 +1,5 @@
+github.com/SaidakbarPardaboyev/Token-Bucket-Rate-Limiter v0.0.0-20250326104621-7e84a3f2b475 h1:bKeQsZlf88mCQiEEg3W09gGxYN4Ys/FtX0Bdecxqwy4=
+github.com/SaidakbarPardaboyev/Token-Bucket-Rate-Limiter v0.0.0-20250326104621-7e84a3f2b475/go.mod h1:VuO03ULQoJKsoGTCLf4s6Jo+ZsAa87ydtg3us29pF0Q=
 github.com/bytedance/sonic v1.11.6 h1:oUp34TzMlL+OY1OUWxHqsdkgC/Zfc85zGqw9siXjrc0=
 github.com/bytedance/sonic v1.11.6/go.mod h1:LysEHSvpvDySVdC2f87zGWf6CIKJcAvqab1ZaiQtds4=
 github.com/bytedance/sonic/loader v0.1.1 h1:c+e5Pt1k/cy5wMveRDyk2X4B9hF4g7an8N3zCYjJFNM=

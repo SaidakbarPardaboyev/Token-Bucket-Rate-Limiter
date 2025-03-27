@@ -1,8 +1,11 @@
-module github.com/SaidakbarPardaboyev/Token-Bucket-Rate-Limiter
+module test
 
 go 1.22.2
 
-require github.com/gin-gonic/gin v1.10.0
+require (
+	github.com/SaidakbarPardaboyev/Token-Bucket-Rate-Limiter v0.0.0-20250326104621-7e84a3f2b475
+	github.com/gin-gonic/gin v1.10.0
+)
 
 require (
 	github.com/bytedance/sonic v1.11.6 // indirect

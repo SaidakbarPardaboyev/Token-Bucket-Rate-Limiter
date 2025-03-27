@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type RateLimiter interface {
@@ -14,7 +16,8 @@ type RateLimiter interface {
 	SetConfig(RateLimiterConfig)
 	RefillBucket()
 	GetBucketStatus(w http.ResponseWriter, r *http.Request)
-	RateLimitMiddleware(next http.Handler) http.Handler
+	RateLimitHTTPMiddleware(next http.Handler) http.Handler
+	RateLimitGinMiddleware() gin.HandlerFunc
 }
 
 type rateLimiter struct {
@@ -71,7 +74,7 @@ func (r *rateLimiter) GetBucketStatus(w http.ResponseWriter, request *http.Reque
 	json.NewEncoder(w).Encode(response)
 }
 
-func (r *rateLimiter) RateLimitMiddleware(next http.Handler) http.Handler {
+func (r *rateLimiter) RateLimitHTTPMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		r.mx.Lock()
 		defer r.mx.Unlock()
@@ -90,6 +93,28 @@ func (r *rateLimiter) RateLimitMiddleware(next http.Handler) http.Handler {
 			})
 		}
 	})
+}
+
+func (r *rateLimiter) RateLimitGinMiddleware() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		r.mx.Lock()
+		defer r.mx.Unlock()
+
+		if len(r.tokenBucket) > 0 {
+			r.tokenBucket = r.tokenBucket[1:]
+			ctx.Writer.Header().Set("X-RateLimit-Remaining", fmt.Sprintf("%d", len(r.tokenBucket)))
+
+			ctx.Next()
+		} else {
+			ctx.Writer.Header().Set("X-RateLimit-Remaining", "0")
+			ctx.Writer.Header().Set("Retry-After", fmt.Sprintf("%f second", r.REFILL_INTERVAL.Seconds()))
+
+			ctx.JSON(http.StatusTooManyRequests, map[string]interface{}{
+				"success": false,
+				"message": "Too many requests",
+			})
+		}
+	}
 }
 
 func (r *rateLimiter) Run() {
