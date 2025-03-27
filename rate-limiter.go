@@ -15,7 +15,8 @@ type RateLimiter interface {
 	Config() *rateLimiter
 	SetConfig(RateLimiterConfig)
 	RefillBucket()
-	GetBucketStatus(w http.ResponseWriter, r *http.Request)
+	GetBucketStatusWithHTTP(w http.ResponseWriter, r *http.Request)
+	GetBucketStatusWithGin(ctx *gin.Context)
 	RateLimitHTTPMiddleware(next http.Handler) http.Handler
 	RateLimitGinMiddleware() gin.HandlerFunc
 }
@@ -60,7 +61,7 @@ func (r *rateLimiter) RefillBucket() {
 	}
 }
 
-func (r *rateLimiter) GetBucketStatus(w http.ResponseWriter, request *http.Request) {
+func (r *rateLimiter) GetBucketStatusWithHTTP(w http.ResponseWriter, request *http.Request) {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -72,6 +73,18 @@ func (r *rateLimiter) GetBucketStatus(w http.ResponseWriter, request *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (r *rateLimiter) GetBucketStatusWithGin(ctx *gin.Context) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	ctx.Writer.Header().Set("Content-Type", "application/json")
+	ctx.JSON(http.StatusOK, BucketStatus{
+		BucketLimit:       r.RATE_LIMIT,
+		CurrentBucketSize: int64(len(r.tokenBucket)),
+		Bucket:            []int64{},
+	})
 }
 
 func (r *rateLimiter) RateLimitHTTPMiddleware(next http.Handler) http.Handler {
@@ -113,6 +126,7 @@ func (r *rateLimiter) RateLimitGinMiddleware() gin.HandlerFunc {
 				"success": false,
 				"message": "Too many requests",
 			})
+			ctx.Abort()
 		}
 	}
 }
@@ -129,7 +143,7 @@ func (r *rateLimiter) Run() {
 }
 
 // Sample endpoint for testing rate limiting
-func TestEndpoint(w http.ResponseWriter, r *http.Request) {
+func TestEndpointWtihHTTP(w http.ResponseWriter, r *http.Request) {
 	rockPaperScissors := []string{"rock 🪨", "paper 📃", "scissors ✂️"}
 	randomChoice := rockPaperScissors[time.Now().UnixNano()%3]
 
@@ -140,6 +154,19 @@ func TestEndpoint(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func TestEndpointWithGin(ctx *gin.Context) {
+	rockPaperScissors := []string{"rock 🪨", "paper 📃", "scissors ✂️"}
+	randomChoice := rockPaperScissors[time.Now().UnixNano()%3]
+
+	response := map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("You got %s", randomChoice),
+	}
+
+	ctx.Writer.Header().Set("Content-Type", "application/json")
+	ctx.JSON(http.StatusOK, response)
 }
 
 // func main() {
@@ -153,7 +180,7 @@ func TestEndpoint(w http.ResponseWriter, r *http.Request) {
 
 // 	// Setup HTTP server and routes
 // 	http.HandleFunc("/bucket", rateLimiter.GetBucketStatus)
-// 	http.Handle("/test", rateLimiter.RateLimitMiddleware(http.HandlerFunc(testEndpoint)))
+// 	http.Handle("/test", rateLimiter.RateLimitHTTPMiddleware(http.HandlerFunc(TestEndpoint)))
 
 // 	// Start the server
 // 	fmt.Println("Server running on port 5000")
@@ -161,3 +188,29 @@ func TestEndpoint(w http.ResponseWriter, r *http.Request) {
 // 		fmt.Println("Error starting server:", err)
 // 	}
 // }
+
+func main() {
+	// Initialize the rate limiter
+	rateLimiter := New()
+	rateLimiter.SetConfig(RateLimiterConfig{
+		RATE_LIMIT:      1000,
+		REFILL_INTERVAL: 2 * time.Second,
+	})
+	rateLimiter.Run()
+
+	// Setup HTTP server and routes
+	r := gin.Default()
+	r.Use(rateLimiter.RateLimitGinMiddleware())
+
+	test := r.Group("/test")
+	{
+		test.GET("/bucket", rateLimiter.GetBucketStatusWithGin)
+		test.POST("/", TestEndpointWithGin)
+	}
+
+	// Start the server
+	fmt.Println("Server running on port 5000")
+	if err := r.Run(":5000"); err != nil {
+		fmt.Println("Error starting server:", err)
+	}
+}
